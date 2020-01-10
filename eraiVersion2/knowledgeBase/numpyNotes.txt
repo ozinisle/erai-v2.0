@@ -1,0 +1,7 @@
+1. Custom step size in for loop
+
+interval= np.arange(0, 1, .2)
+for itr in range(0,interval.size):
+    print (interval[itr])
+
+------------------------------------------------------------------------------------------

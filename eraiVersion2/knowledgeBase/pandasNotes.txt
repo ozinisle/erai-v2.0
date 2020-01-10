@@ -1,0 +1,105 @@
+
+1. ranged selection in a column in pandas dataframe 
+
+df['two'].between(-0.5, 0.5, inclusive=False)
+
+------------------------------------------------------------------------------------------
+
+2. Drop rows based on duplicate values in column
+
+ddf.drop_duplicates(subset='columnName', keep='first')
+
+Also,
+
+    Sort by distances and drop by dates:
+
+    df.sort_values('Distance').drop_duplicates(subset='Date', keep='first')
+
+------------------------------------------------------------------------------------------
+
+3. Drop rows with null/nan values
+
+Ans 1 : df.dropna(subset = ['column1_name', 'column2_name', 'column3_name'])
+Ans 2 : df = df[np.isfinite(df['EPS'])]
+Ans 3 : df.dropna(subset=['EPS'],inplace=True)
+Ans 4 : filtered_df = df[df['EPS'].notnull()]
+Ans 5 : filtered_df = df[~df.EPS.isnull()]
+Ans 6 : filtered_df = df[~np.isnan(df.EPS)]
+
+Advanced / More detailed concepts with respect to"Dropping rows with null/nan values"
+
+    Assuming your data set is as follows
+
+              0         1         2
+0       NaN       NaN       NaN
+1  2.677677 -1.466923 -0.750366
+2       NaN  0.798002 -0.906038
+3  0.672201  0.964789       NaN
+4       NaN       NaN  0.050742
+5 -1.250970  0.030561 -2.678622
+6       NaN  1.036043       NaN
+7  0.049896 -0.308003  0.823295
+8       NaN       NaN  0.637482
+9 -0.310130  0.078891       NaN
+
+    Answer 1 : df.dropna()     #drop all rows that have any NaN values
+
+              0         1         2
+1  2.677677 -1.466923 -0.750366
+5 -1.250970  0.030561 -2.678622
+7  0.049896 -0.308003  0.823295
+
+    Answer 2 : df.dropna(how='all')     #drop only if ALL columns are NaN
+
+          0         1         2
+1  2.677677 -1.466923 -0.750366
+2       NaN  0.798002 -0.906038
+3  0.672201  0.964789       NaN
+4       NaN       NaN  0.050742
+5 -1.250970  0.030561 -2.678622
+6       NaN  1.036043       NaN
+7  0.049896 -0.308003  0.823295
+8       NaN       NaN  0.637482
+9 -0.310130  0.078891       NaN
+
+    Answer 3 : df.dropna(thresh=2)   #Drop row if it does not have at least two values that are **not** NaN
+
+          0         1         2
+1  2.677677 -1.466923 -0.750366
+2       NaN  0.798002 -0.906038
+3  0.672201  0.964789       NaN
+5 -1.250970  0.030561 -2.678622
+7  0.049896 -0.308003  0.823295
+9 -0.310130  0.078891       NaN
+
+    Answer 4 : df.dropna(subset=[1])   #Drop only if NaN in specific column (as asked in the question)
+
+          0         1         2
+1  2.677677 -1.466923 -0.750366
+2       NaN  0.798002 -0.906038
+3  0.672201  0.964789       NaN
+5 -1.250970  0.030561 -2.678622
+6       NaN  1.036043       NaN
+7  0.049896 -0.308003  0.823295
+9 -0.310130  0.078891       NaN
+
+-----------------------------------------------------------------------------------------------------------------
+
+4. sort dataframe by column
+
+closeOpenDiffDf.sort_values(axis=0, ascending=True, inplace=False, kind='quicksort', na_position='last').reset_index(drop=True)
+df.sort_values('Distance').drop_duplicates(subset='Date', keep='first')
+
+-----------------------------------------------------------------------------------------------------------------
+
+5. dropping column names or index not in list
+
+df[df.index.isin(list_index)]
+
+-----------------------------------------------------------------------------------------------------------------
+
+6. dropping column names or index in list
+
+df[~df.index.isin(list_index)]
+
+-----------------------------------------------------------------------------------------------------------------
