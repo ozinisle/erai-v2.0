@@ -433,3 +433,33 @@ def createFinalTrainingFeatureList(dataName,dataFrequency,variation_degree):
     
     return trainingFeatureDF, outputFinalFeatureListFilePath
 
+def getQuantityBasedFeatures(dataName,dataFrequency): 
+    import pandas as pd
+    import numpy as np
+
+    from utilities.fileFolderManipulations import getJupyterRootDirectory
+    from config.environment import getAppConfigData
+
+    # Variable to hold the original source folder path which is calculated from the input relative path of the source folder (relativeDataFolderPath)
+    # using various python commands like os.path.abspath and os.path.join
+    jupyterNodePath = getJupyterRootDirectory()
+
+    autoConfigData = getAppConfigData()        
+
+    preProcessedDataFilePath=autoConfigData[dataName][dataFrequency]['preProcessedDataFilePath']
+
+    # read the raw processed data from csv file
+    df = pd.read_csv(jupyterNodePath + preProcessedDataFilePath)  
+
+    qtyMean = np.mean(df['quantity'])
+    qtyMax = np.max(df['quantity'])
+    normalizedQuantityDf = (df['quantity'] - qtyMean)/qtyMax
+
+    qtyDiffDf = df['quantity'] - df['quantity'].shift(1)
+    qtyDiffMean = np.mean(qtyDiffDf)
+    qtyDiffMax = np.max(qtyDiffDf)
+    normalizedQtyDiffDf = (qtyDiffDf - qtyDiffMean)/qtyDiffMax
+
+    return pd.concat([normalizedQuantityDf,normalizedQtyDiffDf],axis=1)
+
+
