@@ -17,8 +17,8 @@ def getRedGreenCandlesCatogizedBySizeDf(df, autoConfigFileRelativePath, dataName
     import numpy as np
 
     from utilities.fileFolderManipulations import getJupyterRootDirectory    
-    from utilities.environment import getAutoConfigData
-    from utilities.environment import setAutoConfigData
+    from config.environment import getAppConfigData
+    from config.environment import setAppConfigData
 
     redCandlesBySizeDf = None
     greenCandlesBySizeDf = None
@@ -38,7 +38,7 @@ def getRedGreenCandlesCatogizedBySizeDf(df, autoConfigFileRelativePath, dataName
             configFilePath=jupyterNodePath+autoConfigFileRelativePath
             print("configFilePath >>> "+configFilePath)
 
-            autoConfigData = getAutoConfigData(configFilePath)
+            autoConfigData = getAppConfigData()
 
             if not autoConfigData.get(dataName):
                 autoConfigData[dataName]={}
@@ -66,7 +66,7 @@ def getRedGreenCandlesCatogizedBySizeDf(df, autoConfigFileRelativePath, dataName
                 autoConfigData[dataName][dataFrequency].update({'redGreenCandleSizeBoundaries':boundaryValues})
 
                 print('pushing values to autoConfigFile >>> ' + configFilePath + ' with data '+ json.dumps(autoConfigData))
-                setAutoConfigData(configFilePath,autoConfigData)
+                setAppConfigData(autoConfigData)
             else: 
                 print('using configured boundary values - do not update configurations unless u r absolutely sure of it')
         else:

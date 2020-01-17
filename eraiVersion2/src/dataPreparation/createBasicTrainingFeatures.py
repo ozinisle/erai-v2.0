@@ -12,8 +12,8 @@ def createInputData(dataName,dataFrequency, outputFileName='preparedTrainingData
 
     import pandas as pd  
 
-    from utilities.environment import getAutoConfigData
-    from utilities.environment import setAutoConfigData
+    from config.environment import getAppConfigData
+    from config.environment import setAppConfigData
 
 
     # Variable to hold the original source folder path which is calculated from the input relative path of the source folder (relativeDataFolderPath)

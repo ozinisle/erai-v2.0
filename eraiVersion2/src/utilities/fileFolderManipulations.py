@@ -16,8 +16,20 @@ def getJupyterRootDirectory():
 
 def getParentFolder(folderPath, parentLevel=1):
     osParentFolderPath = None
-
+    
     try:
+        #caluclate the deployment directory path of the current juypter node in the operating system
+        projectRootFolderPath = getJupyterRootDirectory()
+
+        rootFolderPathIndex = -1
+        try:
+            rootFolderPathIndex = folderPath.index(projectRootFolderPath)
+        except ValueError:
+            pass
+
+        if rootFolderPathIndex != 0:
+            folderPath = projectRootFolderPath+'/'+folderPath
+
         osFolderPath = Path(folderPath)
         
         for parentItr in range(parentLevel):
@@ -76,6 +88,18 @@ def createFolder(folderPath):
     success = False
     createNewFolderFlag = False
     try:
+        #caluclate the deployment directory path of the current juypter node in the operating system
+        projectRootFolderPath = getJupyterRootDirectory()
+
+        rootFolderPathIndex = -1
+        try:
+            rootFolderPathIndex = folderPath.index(projectRootFolderPath)
+        except ValueError:
+            pass
+
+        if rootFolderPathIndex != 0:
+            folderPath = projectRootFolderPath+'/'+folderPath
+
         print (" checking if folder existis >>>" + folderPath)
         if not os.path.exists(folderPath):
             os.makedirs(folderPath, exist_ok=True)
@@ -136,6 +160,19 @@ def deleteFile(filePath):
     import os
     success = False
     try:
+
+        #caluclate the deployment directory path of the current juypter node in the operating system
+        projectRootFolderPath = getJupyterRootDirectory()
+
+        rootFolderPathIndex = -1
+        try:
+            rootFolderPathIndex = filePath.index(projectRootFolderPath)
+        except ValueError:
+            pass
+
+        if rootFolderPathIndex != 0:
+            filePath = projectRootFolderPath+'/'+filePath
+
         os.remove(filePath)
         print("File deleted >>> "+filePath)
         success = True

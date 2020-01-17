@@ -1,0 +1,9 @@
+{
+    "variationDegreeForFeatureGeneration":20,
+    "requiredMinimumFeatureCorrelationWithOutputData":0.7,
+    "adani": {
+        "1h": {
+            "preProcessedDataFilePath": "/data/adani/processed/1h/preProcessedData/processedRawData.csv"
+        }
+    }
+}

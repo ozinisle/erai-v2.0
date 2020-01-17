@@ -6,55 +6,45 @@ traceback_template = '''Traceback (most recent call last):
   File "%(filename)s", line %(lineno)s, in %(name)s
 %(type)s: %(message)s\n''' # Skipping the "actual line" item
 
-def doBasicOperation(dataName,dataFrequency,autoConfigFileRelativePath,KEY_preProcessedDataFilePath,variation_degree):
+def doBasicOperation(dataName,dataFrequency):
     import os,sys,traceback    
     from datetime import datetime, timedelta
 
     import pandas as pd  
     import numpy as np
-
     
-    from utilities.environment import getAutoConfigData
-    from utilities.environment import setAutoConfigData
-
+    from config.environment import getAppConfigData
+    from config.environment import setAppConfigData
     
     from utilities.fileFolderManipulations import getJupyterRootDirectory
     from utilities.fileFolderManipulations import getParentFolder
     from utilities.fileFolderManipulations import createFolder
     print ("into method doBasicOperation")
 
+    return_fundamentalFeaturesDf = None
+
     try:
 
         # Variable to hold the original source folder path which is calculated from the input relative path of the source folder (relativeDataFolderPath)
         # using various python commands like os.path.abspath and os.path.join
-        jupyterNodePath = None
+        jupyterNodePath = getJupyterRootDirectory()
 
         configFilePath = None    
 
         # holds data from input data file - Truth source, should be usd only for reference and no updates should happen to this variable
         inputRawProcessedDataDF = None    
 
-        #caluclate the deployment directory path of the current juypter node in the operating system
-        jupyterNodePath = getJupyterRootDirectory()
-        print("jupyterNodePath >>> "+jupyterNodePath)
+        autoConfigData = getAppConfigData()        
 
-        configFilePath=jupyterNodePath+autoConfigFileRelativePath
-        print("configFilePath >>> "+configFilePath)
-
-        autoConfigData = getAutoConfigData(configFilePath)
-        
-
-        preProcessedDataFilePath=autoConfigData[dataName][dataFrequency][KEY_preProcessedDataFilePath]
+        preProcessedDataFilePath=autoConfigData[dataName][dataFrequency]['preProcessedDataFilePath']
 
         # read the raw processed data from csv file
-        inputRawProcessedDataDF = pd.read_csv(preProcessedDataFilePath)  
+        inputRawProcessedDataDF = pd.read_csv(jupyterNodePath + preProcessedDataFilePath)  
 
-        basicDf = createFundamentalFeatures(inputRawProcessedDataDF)
+        return_fundamentalFeaturesDf = createFundamentalFeatures(inputRawProcessedDataDF)
         
         print("before return statement of method doBasicOperation ")
-
-        return basicDf,variation_degree,preProcessedDataFilePath,autoConfigData,configFilePath
-
+   
     except:
         print("Error executing method >>> ")
         # exc_type, exc_obj, exc_tb = sys.exc_info()
@@ -95,7 +85,9 @@ def doBasicOperation(dataName,dataFrequency,autoConfigFileRelativePath,KEY_prePr
 
         #traceback.print_exception()
         raise
-    
+    finally:
+        return return_fundamentalFeaturesDf
+
 def getAttributeDifferenceBasedFeatures(df):
     import pandas as pd
 
@@ -119,137 +111,6 @@ def getAttributeDifferenceBasedMidPointsFeatures(df):
             ((df['close']+df['low'])/2).rename('close_low_mid'),
             ((df['high']+df['low'])/2).rename('high_low_mid')
     ],axis=1)
-
-def doFeatureAssessment(newFeatureDf,basicDf,variation_degree,preProcessedDataFilePath,autoConfigData,
-    configFilePath,requiredMinimumCorrelation,featureIndexStamp,dataName,dataFrequency):
-    import numpy as np
-    import pandas as pd
-
-    from utilities.fileFolderManipulations import getJupyterRootDirectory
-    from utilities.fileFolderManipulations import getParentFolder
-    from utilities.fileFolderManipulations import createFolder
-    from utilities.fileFolderManipulations import deleteFile
-    
-    from utilities.environment import setAutoConfigData
-    
-    try:
-
-        featureOfInterest = newFeatureDf.name
-        if variation_degree==0:
-            newTrainingSetDf=pd.concat([basicDf,newFeatureDf],axis=1)
-        else:
-            newTrainingSetDf = createNewTrainingSetWithFeatureVariations(basicDf,newFeatureDf,featureOfInterest,variation_degree) 
-
-        correlation = newTrainingSetDf.corr()
-
-        reasonableCorelation = correlation.loc[ (np.abs(correlation['open'])>requiredMinimumCorrelation) & 
-        (np.abs(correlation['high'])>requiredMinimumCorrelation) &
-        (np.abs(correlation['low'])>requiredMinimumCorrelation) & 
-        (np.abs(correlation['close'])>requiredMinimumCorrelation)]
-
-        # create necessary file folder structure for storing and filtering features
-        preprocessedFolderPath = getParentFolder(preProcessedDataFilePath)
-        outputFolderPath = getParentFolder(preprocessedFolderPath)
-
-        featuresFolder = outputFolderPath+"\\features"
-        createFolder(featuresFolder)
-
-        rawFeaturesFolder = featuresFolder+"\\rawFeatures"
-        createFolder(rawFeaturesFolder)
-
-        filteredFeaturesFolder = featuresFolder+"\\filteredFeatures"
-        createFolder(filteredFeaturesFolder)
-
-        correlationsFolder = featuresFolder+"\\correlations"
-        createFolder(correlationsFolder)
-
-        reasonableCorrelationsFolder = correlationsFolder+"\\reasonableCorrelations"
-        createFolder(reasonableCorrelationsFolder)
-
-        trainableFeaturesListFilePath = filteredFeaturesFolder+"\\"+featureIndexStamp+featureOfInterest+"_trainableFeaturesList.csv"
-        currentFeatureListFilePath = rawFeaturesFolder+"\\"+featureIndexStamp+featureOfInterest+"_variations_list.csv"
-        currentFeatureCorrelationListFilePath = correlationsFolder+"\\"+featureIndexStamp+featureOfInterest+"_variations_correlation_list.csv"
-        reasonableCorelationListFilePath = reasonableCorrelationsFolder+"\\"+featureIndexStamp+featureOfInterest+"_variations_reasonable_correlation_list.csv"
-
-        deleteFile(trainableFeaturesListFilePath)
-        deleteFile(currentFeatureListFilePath)
-        deleteFile(currentFeatureCorrelationListFilePath)
-        deleteFile(reasonableCorelationListFilePath)
-
-        # store output information related to current 
-        newTrainingSetDf.to_csv(currentFeatureListFilePath, sep=',', index=False)
-        correlation.to_csv(currentFeatureCorrelationListFilePath, sep=',', index=True)
-        reasonableCorelation.to_csv(reasonableCorelationListFilePath, sep=',', index=True)
-
-        if len(reasonableCorelation.index)>4:    
-            # store trainable features in global file - to be used by other training feature creation procedures    
-            newFilteredTrainableFeaturesDf = newTrainingSetDf[[filteredIndex for filteredIndex in reasonableCorelation.index] ]
-            trainableFeaturesDf=newFilteredTrainableFeaturesDf.drop(columns=["open","close","high","low"])    
-            # trainableFeaturesDf = getTrainableFeaturesListDf(trainableFeaturesListFilePath)
-            # if trainableFeaturesDf is None:
-            #     trainableFeaturesDf= newFilteredTrainableFeaturesDf
-            # else:        
-            #     # newFilteredTrainableFeaturesDf=newFilteredTrainableFeaturesDf.drop(columns=["open","close","high","low"])    
-            #     # trainableFeaturesDf = pd.concat([trainableFeaturesDf,newFilteredTrainableFeaturesDf],axis=1)
-            #     for index in reasonableCorelation:
-            #         try:
-            #             trainableFeaturesDf[index] = newFilteredTrainableFeaturesDf[index]
-            #         except KeyError:
-            #             print ('key error >>>' + index)
-            
-            if not trainableFeaturesDf is None or trainableFeaturesDf.shape[1]>0:
-                trainableFeaturesDf.to_csv(trainableFeaturesListFilePath, sep=',', index=False)
-
-            # assertions
-            print("newTrainingSetDf shape>>>"+str(newTrainingSetDf.shape[0])+","+str(newTrainingSetDf.shape[1]))
-            print("trainableFeaturesDf shape>>>"+str(trainableFeaturesDf.shape[0])+","+str(trainableFeaturesDf.shape[1]))
-            
-            autoConfigData[dataName][dataFrequency].update({'trainableFeaturesListFile':trainableFeaturesListFilePath})
-            setAutoConfigData(configFilePath,autoConfigData)
-        else:
-            trainableFeaturesDf = getTrainableFeaturesListDf(trainableFeaturesListFilePath)
-
-        return correlation, reasonableCorelation ,newTrainingSetDf ,trainableFeaturesDf
-    except:
-        print("Error executing method >>> ")
-        # exc_type, exc_obj, exc_tb = sys.exc_info()
-        # fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-        # print("Unexpected error:", sys.exc_info())
-        # print(exc_type, fname, exc_tb.tb_lineno)
-        
-        # http://docs.python.org/2/library/sys.html#sys.exc_info
-        exc_type, exc_value, exc_traceback = sys.exc_info() # most recent (if any) by default
-        
-        '''
-        Reason this _can_ be bad: If an (unhandled) exception happens AFTER this,
-        or if we do not delete the labels on (not much) older versions of Py, the
-        reference we created can linger.
-
-        traceback.format_exc/print_exc do this very thing, BUT note this creates a
-        temp scope within the function.
-        '''
-
-        traceback_details = {
-                            'filename': exc_traceback.tb_frame.f_code.co_filename,
-                            'lineno'  : exc_traceback.tb_lineno,
-                            'name'    : exc_traceback.tb_frame.f_code.co_name,
-                            'type'    : exc_type.__name__,
-                            'message' : traceback.extract_tb(exc_traceback)
-                            }
-        
-        del(exc_type, exc_value, exc_traceback) # So we don't leave our local labels/objects dangling
-        # This still isn't "completely safe", though!
-        # "Best (recommended) practice: replace all exc_type, exc_value, exc_traceback
-        # with sys.exc_info()[0], sys.exc_info()[1], sys.exc_info()[2]
-        
-        print
-        print(traceback.format_exc())
-        print
-        print(traceback_template % traceback_details)
-        print
-
-        #traceback.print_exception()
-        raise
 
 def getTrainableFeaturesListDf(filePath):
     import pandas as pd
@@ -276,143 +137,7 @@ def createFundamentalFeatures(rawDf):
     
     return df
 
-def getFeatureVariations(row, featureName, variation_degree_count):
-    import numpy as np
-
-    try:
-    
-        featureVal=row[featureName]    
-        
-        for iterator in range(1,variation_degree_count+1):
-            row[featureName+'_exp_1'] = np.exp(featureVal)
-            row[featureName+'_exp_inv_1'] = np.exp(-1*featureVal)
-        
-            if iterator>1:
-                val= np.power(featureVal,iterator)
-                valInv = 0
-                if not val==0:
-                    valInv = 1/val
-                    row[featureName+'_times_inv_'+str(iterator)] = 1/(val*iterator)
-                # correlation of X::mY does not change for the value m and hence commenting out the following code
-                # else:
-                #     row[featureName+'_times_inv_'+str(iterator)] = 0
-
-                row[featureName+'_pow_'+str(iterator)] = val
-                row[featureName+'_pow_inv_'+str(iterator)] = valInv
-                row[featureName+'_exp_'+str(iterator)] = np.exp(iterator*featureVal)
-                row[featureName+'_exp_inv_'+str(iterator)] = np.exp(-iterator*featureVal)
-
-                # correlation of X::mY does not change for the value m and hence commenting out the following code
-                # row[featureName+'_times_'+str(iterator)] = val*iterator        
-
-                if val>0:
-                    row[featureName+'_log_times_'+str(iterator)] = np.log(val*iterator)
-                elif val<0:
-                    row[featureName+'_log_times_'+str(iterator)] = -np.log(-1*val*iterator)
-            
-        return row 
-    except:
-        print("Error executing method >>> ")
-        # exc_type, exc_obj, exc_tb = sys.exc_info()
-        # fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-        # print("Unexpected error:", sys.exc_info())
-        # print(exc_type, fname, exc_tb.tb_lineno)
-        
-        # http://docs.python.org/2/library/sys.html#sys.exc_info
-        exc_type, exc_value, exc_traceback = sys.exc_info() # most recent (if any) by default
-        
-        '''
-        Reason this _can_ be bad: If an (unhandled) exception happens AFTER this,
-        or if we do not delete the labels on (not much) older versions of Py, the
-        reference we created can linger.
-
-        traceback.format_exc/print_exc do this very thing, BUT note this creates a
-        temp scope within the function.
-        '''
-
-        traceback_details = {
-                            'filename': exc_traceback.tb_frame.f_code.co_filename,
-                            'lineno'  : exc_traceback.tb_lineno,
-                            'name'    : exc_traceback.tb_frame.f_code.co_name,
-                            'type'    : exc_type.__name__,
-                            'message' : traceback.extract_tb(exc_traceback)
-                            }
-        
-        del(exc_type, exc_value, exc_traceback) # So we don't leave our local labels/objects dangling
-        # This still isn't "completely safe", though!
-        # "Best (recommended) practice: replace all exc_type, exc_value, exc_traceback
-        # with sys.exc_info()[0], sys.exc_info()[1], sys.exc_info()[2]
-        
-        print
-        print(traceback.format_exc())
-        print
-        print(traceback_template % traceback_details)
-        print
-
-        #traceback.print_exception()
-        raise
-
-def createNewTrainingSetWithFeatureVariations(basicDf,newFeatureDf,featureOfInterest,variation_degree) :
-    import pandas as pd
-    import numpy as np
-    from tqdm import tqdm
-
-    try:
-        # Create and register a new `tqdm` instance with `pandas`
-        # (can use tqdm_gui, optional kwargs, etc.)
-        tqdm.pandas()
-
-
-
-        newTrainingSetDf = pd.concat([basicDf,newFeatureDf],axis=1)
-
-        newTrainingSetDf = newTrainingSetDf.progress_apply(lambda row,
-                        featureName, variation_degree_count:getFeatureVariations(row,featureOfInterest,variation_degree),axis=1,
-                        args=[featureOfInterest,variation_degree])
-
-        return newTrainingSetDf
-    except:
-        print("Error executing method >>> ")
-        # exc_type, exc_obj, exc_tb = sys.exc_info()
-        # fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-        # print("Unexpected error:", sys.exc_info())
-        # print(exc_type, fname, exc_tb.tb_lineno)
-        
-        # http://docs.python.org/2/library/sys.html#sys.exc_info
-        exc_type, exc_value, exc_traceback = sys.exc_info() # most recent (if any) by default
-        
-        '''
-        Reason this _can_ be bad: If an (unhandled) exception happens AFTER this,
-        or if we do not delete the labels on (not much) older versions of Py, the
-        reference we created can linger.
-
-        traceback.format_exc/print_exc do this very thing, BUT note this creates a
-        temp scope within the function.
-        '''
-
-        traceback_details = {
-                            'filename': exc_traceback.tb_frame.f_code.co_filename,
-                            'lineno'  : exc_traceback.tb_lineno,
-                            'name'    : exc_traceback.tb_frame.f_code.co_name,
-                            'type'    : exc_type.__name__,
-                            'message' : traceback.extract_tb(exc_traceback)
-                            }
-        
-        del(exc_type, exc_value, exc_traceback) # So we don't leave our local labels/objects dangling
-        # This still isn't "completely safe", though!
-        # "Best (recommended) practice: replace all exc_type, exc_value, exc_traceback
-        # with sys.exc_info()[0], sys.exc_info()[1], sys.exc_info()[2]
-        
-        print
-        print(traceback.format_exc())
-        print
-        print(traceback_template % traceback_details)
-        print
-
-        #traceback.print_exception()
-        raise
-
-def createNewTrainingSetWithFeatureVariations_v2(basicDf,newFeatureDf,featureOfInterest,variation_degree) :
+def _createNewTrainingSetWithFeatureVariations(basicDf,newFeatureDf,featureOfInterest,variation_degree) :
     import pandas as pd
     import numpy as np
 
@@ -487,8 +212,7 @@ def createNewTrainingSetWithFeatureVariations_v2(basicDf,newFeatureDf,featureOfI
         #traceback.print_exception()
         raise
 
-def prepareFeatureWithData(newFeatureDf,basicDf,variation_degree,preProcessedDataFilePath,
-    configFilePath,requiredMinimumCorrelation,featureIndexStamp,dataName,dataFrequency,useVersion2=False):
+def prepareFeatureWithData(dataName,dataFrequency,newFeatureDf,basicDf,featureIndexStamp,variation_degree=-1,requiredMinimumCorrelation=-1):
     import numpy as np
     import pandas as pd
 
@@ -498,8 +222,8 @@ def prepareFeatureWithData(newFeatureDf,basicDf,variation_degree,preProcessedDat
     from utilities.fileFolderManipulations import deleteFile
     
     
-    from utilities.environment import setAutoConfigData
-    from utilities.environment import getAutoConfigData
+    from config.environment import setAppConfigData
+    from config.environment import getAppConfigData
     
     correlation = None
     reasonableCorelation = None
@@ -507,15 +231,22 @@ def prepareFeatureWithData(newFeatureDf,basicDf,variation_degree,preProcessedDat
     trainableFeaturesDf = None
 
     try:
+        
+        configData = getAppConfigData()
+        
+        if not (isinstance(requiredMinimumCorrelation,int) or isinstance(requiredMinimumCorrelation,float))or requiredMinimumCorrelation == -1:
+            requiredMinimumCorrelation = configData['requiredMinimumFeatureCorrelationWithOutputData']
+        print ('requiredMinimumCorrelation is >>> '+ str(requiredMinimumCorrelation))
+
+        if not type(variation_degree) == 'int' or variation_degree == -1:
+            variation_degree = configData['variationDegreeForFeatureGeneration']
+
         trainableFeaturesDf = None
         featureOfInterest = newFeatureDf.columns
         if variation_degree==0:
             newTrainingSetDf=pd.concat([basicDf,newFeatureDf],axis=1)
         else:
-            if useVersion2 :
-                newTrainingSetDf = createNewTrainingSetWithFeatureVariations_v2(basicDf,newFeatureDf,featureOfInterest,variation_degree) 
-            else :
-                newTrainingSetDf = createNewTrainingSetWithFeatureVariations(basicDf,newFeatureDf,featureOfInterest,variation_degree) 
+            newTrainingSetDf = _createNewTrainingSetWithFeatureVariations(basicDf,newFeatureDf,featureOfInterest,variation_degree) 
 
         # return newTrainingSetDf
         correlation = newTrainingSetDf.corr()
@@ -530,36 +261,38 @@ def prepareFeatureWithData(newFeatureDf,basicDf,variation_degree,preProcessedDat
         reasonableCorelation=reasonableCorelation.drop_duplicates(subset='open', keep='first')
 
         # create necessary file folder structure for storing and filtering features
-        preprocessedFolderPath = getParentFolder(preProcessedDataFilePath)
+        preprocessedFolderPath = '/data/' + dataName + '/processed/'+ dataFrequency + '/preProcessedData'
+        preProcessedDataFilePath = preprocessedFolderPath + '/processedRawData.csv'
+        #getParentFolder(preProcessedDataFilePath)
         outputFolderPath = getParentFolder(preprocessedFolderPath)
 
         print('preprocessedFolderPath interim test >>> ' + preprocessedFolderPath)
         print('outputFolderPath interim test >>> ' + outputFolderPath)
 
-        featuresFolder = outputFolderPath+"\\features"
+        featuresFolder = outputFolderPath+"/features"
         createFolder(featuresFolder)
         print('featuresFolder interim test >>> ' + featuresFolder)
 
-        rawFeaturesFolder = featuresFolder+"\\rawFeatures"
+        rawFeaturesFolder = featuresFolder+"/rawFeatures"
         createFolder(rawFeaturesFolder)
         print('rawFeaturesFolder interim test >>> ' + rawFeaturesFolder)
 
-        filteredFeaturesFolder = featuresFolder+"\\filteredFeatures"
+        filteredFeaturesFolder = featuresFolder+"/filteredFeatures"
         createFolder(filteredFeaturesFolder)
         print('filteredFeaturesFolder interim test >>> ' + filteredFeaturesFolder)
 
-        correlationsFolder = featuresFolder+"\\correlations"
+        correlationsFolder = featuresFolder+"/correlations"
         createFolder(correlationsFolder)
         print('correlationsFolder interim test >>> ' + correlationsFolder)
 
-        reasonableCorrelationsFolder = correlationsFolder+"\\reasonableCorrelations"
+        reasonableCorrelationsFolder = correlationsFolder+"/reasonableCorrelations"
         createFolder(reasonableCorrelationsFolder)
         print('reasonableCorrelationsFolder interim test >>> ' + reasonableCorrelationsFolder)
 
-        trainableFeaturesListFilePath = filteredFeaturesFolder+"\\"+featureIndexStamp+featureOfInterest[0]+"_trainableFeaturesList.csv"
-        currentFeatureListFilePath = rawFeaturesFolder+"\\"+featureIndexStamp+featureOfInterest[0]+"_variations_list.csv"
-        currentFeatureCorrelationListFilePath = correlationsFolder+"\\"+featureIndexStamp+featureOfInterest[0]+"_variations_correlation_list.csv"
-        reasonableCorelationListFilePath = reasonableCorrelationsFolder+"\\"+featureIndexStamp+featureOfInterest[0]+"_variations_reasonable_correlation_list.csv"
+        trainableFeaturesListFilePath = filteredFeaturesFolder+"/"+featureIndexStamp+featureOfInterest[0]+"_trainableFeaturesList.csv"
+        currentFeatureListFilePath = rawFeaturesFolder+"/"+featureIndexStamp+featureOfInterest[0]+"_variations_list.csv"
+        currentFeatureCorrelationListFilePath = correlationsFolder+"/"+featureIndexStamp+featureOfInterest[0]+"_variations_correlation_list.csv"
+        reasonableCorelationListFilePath = reasonableCorrelationsFolder+"/"+featureIndexStamp+featureOfInterest[0]+"_variations_reasonable_correlation_list.csv"
 
         print('trainableFeaturesListFilePath interim test >>> ' + trainableFeaturesListFilePath)
         print('currentFeatureListFilePath interim test >>> ' + currentFeatureListFilePath)
@@ -590,9 +323,9 @@ def prepareFeatureWithData(newFeatureDf,basicDf,variation_degree,preProcessedDat
             print("newTrainingSetDf shape>>>"+str(newTrainingSetDf.shape[0])+","+str(newTrainingSetDf.shape[1]))
             print("trainableFeaturesDf shape>>>"+str(trainableFeaturesDf.shape[0])+","+str(trainableFeaturesDf.shape[1]))
                         
-            autoConfigData = getAutoConfigData(configFilePath)
+            autoConfigData = getAppConfigData()
             autoConfigData[dataName][dataFrequency].update({'trainableFeaturesListFile':trainableFeaturesListFilePath})
-            setAutoConfigData(configFilePath,autoConfigData)
+            setAppConfigData(autoConfigData)
         else:
             trainableFeaturesDf = getTrainableFeaturesListDf(trainableFeaturesListFilePath)
 
@@ -640,15 +373,15 @@ def prepareFeatureWithData(newFeatureDf,basicDf,variation_degree,preProcessedDat
     finally:
         return correlation, reasonableCorelation ,newTrainingSetDf ,trainableFeaturesDf
 
-def createFinalTrainingFeatureList(dataName,dataFrequency,autoConfigFileRelativePath,KEY_preProcessedDataFilePath,variation_degree):
+def createFinalTrainingFeatureList(dataName,dataFrequency,variation_degree):
     import glob
     import pandas as pd
 
     from utilities.fileFolderManipulations import getJupyterRootDirectory
     from utilities.fileFolderManipulations import getParentFolder
 
-    from utilities.environment import getAutoConfigData
-    from utilities.environment import setAutoConfigData
+    from config.environment import getAppConfigData
+    from config.environment import setAppConfigData
 
     from dataPreparation.featurePreparation import doBasicOperation
     
@@ -658,8 +391,8 @@ def createFinalTrainingFeatureList(dataName,dataFrequency,autoConfigFileRelative
     _basicDf,_variation_degree,_preProcessedDataFilePath,_autoConfigData,_configFilePath = doBasicOperation(dataName,
            dataFrequency,autoConfigFileRelativePath,KEY_preProcessedDataFilePath,variation_degree)
 
-    filteredFeaturesPath=jupyterNodePath+"\\data\\"+dataName+"\\processed\\"+dataFrequency+"\\features\\filteredFeatures"
-    outputFinalFeatureListFilePath=jupyterNodePath+"\\data\\"+dataName+"\\processed\\"+dataFrequency+"\\features\\finalTrainingFeatureList.csv"
+    filteredFeaturesPath=jupyterNodePath+"/data/"+dataName+"/processed/"+dataFrequency+"/features/filteredFeatures"
+    outputFinalFeatureListFilePath=jupyterNodePath+"/data/"+dataName+"/processed/"+dataFrequency+"/features/finalTrainingFeatureList.csv"
     print("filteredFeaturesFolderPath >>> " + filteredFeaturesPath)
 
     # creating OS queryable object for python to work with to find json files in the dataFolderPath calcuated in the previous step
@@ -692,9 +425,9 @@ def createFinalTrainingFeatureList(dataName,dataFrequency,autoConfigFileRelative
     trainingFeatureDF.to_csv(outputFinalFeatureListFilePath)
 
     # update auto config file
-    autoConfigData = getAutoConfigData(_configFilePath)
+    autoConfigData = getAppConfigData(_configFilePath)
     autoConfigData[dataName][dataFrequency].update({'finalTrainingFeaturesListFile':outputFinalFeatureListFilePath})
-    setAutoConfigData(_configFilePath,autoConfigData)
+    setAppConfigData(_configFilePath,autoConfigData)
 
     print ("updated config file with data >>>> finalTrainingFeaturesListFile:"+outputFinalFeatureListFilePath)
     

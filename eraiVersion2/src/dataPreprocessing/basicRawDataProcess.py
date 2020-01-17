@@ -9,7 +9,7 @@ def getPreprocessedData(dataName,dataFrequency,autoConfigFileRelativePath,KEY_pr
     import numpy as np
     
     from utilities.fileFolderManipulations import getJupyterRootDirectory    
-    from utilities.environment  import getAutoConfigData
+    from config.environment  import getAppConfigData
    
     # Variable to hold the original source folder path which is calculated from the input relative path of the source folder (relativeDataFolderPath)
     # using various python commands like os.path.abspath and os.path.join
@@ -26,7 +26,7 @@ def getPreprocessedData(dataName,dataFrequency,autoConfigFileRelativePath,KEY_pr
     configFilePath=jupyterNodePath+autoConfigFileRelativePath
     print("configFilePath >>> "+configFilePath)
 
-    autoConfigData = getAutoConfigData(configFilePath)
+    autoConfigData = getAppConfigData()
 
     preProcessedDataFilePath=autoConfigData[dataName][dataFrequency][KEY_preProcessedDataFilePath]
 
@@ -45,6 +45,9 @@ def preProcessData(dataName,dataFrequency,outputFileName = "processedRawData.csv
     from utilities.fileFolderManipulations import getParentFolder
     from utilities.fileFolderManipulations import createFolder
     from utilities.fileFolderManipulations import getJupyterRootDirectory
+
+    from config.environment import getAppConfigData
+    from config.environment import setAppConfigData
 
     from fastai.tabular import  add_datepart
 
@@ -107,7 +110,11 @@ def preProcessData(dataName,dataFrequency,outputFileName = "processedRawData.csv
         for file in file_list:     
             print ("reading input file >>> " + file + " ...")   
             data = pd.read_json(file, lines=True)
-            data=data.values[0][0]['candles']
+            if type(data)!='str':
+                data=data['data'][0]['candles']        
+            else:
+                data=data.values[0][0]['candles']
+                
             inputRawDataDF = inputRawDataDF.append(data, ignore_index = True)
             print ("File read - SUCCESS" )   
 
@@ -143,11 +150,11 @@ def preProcessData(dataName,dataFrequency,outputFileName = "processedRawData.csv
         a+  create file if it doesn't exist and open it in append mode
         '''
         
-        processFolderName =  getParentFolder(dataFolderPath,2) + '\\processed\\'+dataFrequency
+        processFolderName =  getParentFolder(dataFolderPath,2) + '/processed/'+dataFrequency
         print('Attempting to create folder if it does not exist >>>'+ processFolderName)
         createFolder(processFolderName)
 
-        outputFolderName =  processFolderName + '\\preProcessedData'
+        outputFolderName =  processFolderName + '/preProcessedData'
         print('Attempting to create folder if it does not exist >>>'+ outputFolderName)
         createFolder(outputFolderName)
         
@@ -162,9 +169,9 @@ def preProcessData(dataName,dataFrequency,outputFileName = "processedRawData.csv
         print('created raw easy to use csv data to be used for preparing training data in the location  >>>'+outputFilePath)
 
         print (' creating/updating autoConfig file')
-        configFilePath=jupyterNodePath+'\\src\config\\autoConfig\\config.json'
+        configFilePath=jupyterNodePath+'/src/config/autoConfig/config.json'
 
-        autoConfigData = getAutoConfigData(configFilePath)  
+        autoConfigData = getAppConfigData()  
 
         if not autoConfigData.get(dataName):
             autoConfigData[dataName]={}
@@ -172,10 +179,10 @@ def preProcessData(dataName,dataFrequency,outputFileName = "processedRawData.csv
         if not autoConfigData[dataName].get(dataFrequency):
             autoConfigData[dataName][dataFrequency]={}
 
-        autoConfigData[dataName][dataFrequency]={'preProcessedDataFilePath':outputFilePath}
+        autoConfigData[dataName][dataFrequency]={'preProcessedDataFilePath':outputFilePath.replace(jupyterNodePath,'')}
 
         
-        setAutoConfigData(configFilePath,autoConfigData)
+        setAppConfigData(autoConfigData)
         print (' creating/updating autoConfig file >>>'+configFilePath)
 
         returnValue = True
@@ -288,87 +295,4 @@ def getFollowingHolidaysDaysStamp(df):
         count=count+1   
 
     return followingHoliDays.astype(np.int64)
-
-def getAutoConfigData(configFilePath):
-    import json    
-    data=None
-    try:
-       
-        with open(configFilePath) as json_data_file:            
-            data = json.load(json_data_file)
-        
-    except :        
-       
-        data = {}
-        f = open(configFilePath, 'a+')  # open file in append mode
-        f.write('{}')
-        f.close()  
-       
-    finally:
-        return data
-
-def setAutoConfigData(configFilePath,data):
-    
-    import json  
-    import sys,traceback
-    returnValue = False
-   
-    try:
-       
-        with open(configFilePath,'a+') as json_data_file:            
-            json_data_file.seek(0)
-            json_data_file.write('')
-            json_data_file.truncate()
-            json_data_file.write(json.dumps(data))
-        
-        returnValue = True
-    except FileNotFoundError:
-        
-        print('creating and updating config file')
-        f = open(configFilePath, 'a+')  # open file in append mode
-        f.write(json.dumps(data))
-        f.close()  
-        returnValue = True
-    except:
-        print("Error executing method >>> ")
-        # exc_type, exc_obj, exc_tb = sys.exc_info()
-        # fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-        # print("Unexpected error:", sys.exc_info())
-        # print(exc_type, fname, exc_tb.tb_lineno)
-        
-        # http://docs.python.org/2/library/sys.html#sys.exc_info
-        exc_type, exc_value, exc_traceback = sys.exc_info() # most recent (if any) by default
-        
-        '''
-        Reason this _can_ be bad: If an (unhandled) exception happens AFTER this,
-        or if we do not delete the labels on (not much) older versions of Py, the
-        reference we created can linger.
-
-        traceback.format_exc/print_exc do this very thing, BUT note this creates a
-        temp scope within the function.
-        '''
-
-        traceback_details = {
-                            'filename': exc_traceback.tb_frame.f_code.co_filename,
-                            'lineno'  : exc_traceback.tb_lineno,
-                            'name'    : exc_traceback.tb_frame.f_code.co_name,
-                            'type'    : exc_type.__name__,
-                            'message' : traceback.extract_tb(exc_traceback)
-                            }
-        
-        del(exc_type, exc_value, exc_traceback) # So we don't leave our local labels/objects dangling
-        # This still isn't "completely safe", though!
-        # "Best (recommended) practice: replace all exc_type, exc_value, exc_traceback
-        # with sys.exc_info()[0], sys.exc_info()[1], sys.exc_info()[2]
-        
-        print
-        print(traceback.format_exc())
-        print
-        print(traceback_template % traceback_details)
-        print
-
-        #traceback.print_exception()
-        raise
-    finally:
-        return returnValue
 
