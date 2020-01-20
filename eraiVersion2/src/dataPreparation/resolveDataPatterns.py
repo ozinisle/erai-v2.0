@@ -4,7 +4,7 @@ traceback_template = '''Traceback (most recent call last):
   File "%(filename)s", line %(lineno)s, in %(name)s
 %(type)s: %(message)s\n''' # Skipping the "actual line" item
 
-def getRedGreenCandlesCatogizedBySizeDf(df, autoConfigFileRelativePath, dataName, dataFrequency, boundaryValues=None):
+def getRedGreenCandlesCatogizedBySizeDf(df, dataName, dataFrequency, boundaryValues=None):
     # @Param :: boundaryValues 
     #   - should be  Array of 5 tuples 
     #   - each tuble must be a pair of negative and positive float compatible values only (-0.44,0.44)
@@ -35,9 +35,6 @@ def getRedGreenCandlesCatogizedBySizeDf(df, autoConfigFileRelativePath, dataName
             jupyterNodePath = getJupyterRootDirectory()
             print("jupyterNodePath >>> "+jupyterNodePath)
 
-            configFilePath=jupyterNodePath+autoConfigFileRelativePath
-            print("configFilePath >>> "+configFilePath)
-
             autoConfigData = getAppConfigData()
 
             if not autoConfigData.get(dataName):
@@ -65,7 +62,7 @@ def getRedGreenCandlesCatogizedBySizeDf(df, autoConfigFileRelativePath, dataName
    
                 autoConfigData[dataName][dataFrequency].update({'redGreenCandleSizeBoundaries':boundaryValues})
 
-                print('pushing values to autoConfigFile >>> ' + configFilePath + ' with data '+ json.dumps(autoConfigData))
+                #print('pushing values to autoConfigFile >>> ' + configFilePath + ' with data '+ json.dumps(autoConfigData))
                 setAppConfigData(autoConfigData)
             else: 
                 print('using configured boundary values - do not update configurations unless u r absolutely sure of it')
@@ -148,7 +145,7 @@ def getRedGreenCandlesCatogizedBySizeDf(df, autoConfigFileRelativePath, dataName
                       redCandlesBySizeTimesMagnitudeDf,
                      greenCandlesBySizeTimesMagnitudeDf,
                      redGreenCandlesTanhDf,
-                     redGreenCandlesTanhTimesMagnitudeDf],axis=1)
+                     redGreenCandlesTanhTimesMagnitudeDf.rename('redGreenCandlesTanhTimesMagnitudeDf')],axis=1)
 
 def getSimpleDataPatternBasedFeatures(df,relativeOpenCloseValuePercent_config=1,shortLegBoundary_config=1):
     import pandas as pd

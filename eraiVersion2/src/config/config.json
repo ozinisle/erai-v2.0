@@ -1,9 +1,4 @@
-{
-    "variationDegreeForFeatureGeneration":20,
-    "requiredMinimumFeatureCorrelationWithOutputData":0.7,
-    "adani": {
-        "1h": {
-            "preProcessedDataFilePath": "/data/adani/processed/1h/preProcessedData/processedRawData.csv"
-        }
-    }
-}
+{"variationDegreeForFeatureGeneration": 20, "requiredMinimumFeatureCorrelationWithOutputData": 0.7, "adani": {"1h": {
+    "preProcessedDataFilePath": "/data/adani/processed/1h/preProcessedData/processedRawData.csv", 
+    "shortlistedFeatures":"/data/adani/processed/1h/features/shortlistedFeatures/shortlistedFeatures.csv",
+    "trainableFeaturesListFile": "/Users/493055/Desktop/dev/erai-v2.0/erai-v2.0/eraiVersion2/data/adani/processed/1h/features/filteredFeatures/007_redCandlesBySize_trainableFeaturesList.csv", "finalTrainingFeaturesListFile": "/data/adani/processed/1h/features/finalTrainingFeatureList.csv", "redGreenCandleSizeBoundaries": [[-0.40000000000000213, 0.44999999999999574], [-0.25, 0.25], [-0.14999999999999858, 0.14999999999999858], [-0.09999999999999432, 0.05000000000000426]]}}}

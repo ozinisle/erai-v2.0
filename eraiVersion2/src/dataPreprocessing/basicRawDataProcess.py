@@ -110,7 +110,7 @@ def preProcessData(dataName,dataFrequency,outputFileName = "processedRawData.csv
         for file in file_list:     
             print ("reading input file >>> " + file + " ...")   
             data = pd.read_json(file, lines=True)
-            if type(data)!='str':
+            if isinstance(data,str):
                 data=data['data'][0]['candles']        
             else:
                 data=data.values[0][0]['candles']

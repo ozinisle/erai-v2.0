@@ -28,7 +28,6 @@ def getAppConfigData():
         return data
 
 def setAppConfigData(data):
-    print('setAppConfigData >>> configFilePath >>> '+configFilePath)
     
     import json  
     import sys,traceback
